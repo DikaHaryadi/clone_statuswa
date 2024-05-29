@@ -1,11 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:statuswa/image_controller.dart';
-import 'dart:io';
-import 'package:video_trimmer/video_trimmer.dart';
+import 'package:video_player/video_player.dart';
 
 class UploadProcess extends GetView<ImageController> {
-  const UploadProcess({super.key});
+  const UploadProcess({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +17,145 @@ class UploadProcess extends GetView<ImageController> {
         body: SafeArea(
           child: Stack(
             children: [
+              Positioned.fill(
+                child: Obx(() {
+                  final selectedMedia = controller.selectedMediaData.value;
+                  if (selectedMedia != null) {
+                    if (selectedMedia.type == MediaType.video) {
+                      final videoController =
+                          controller.selectedVideoPlayerController.value;
+                      if (videoController != null &&
+                          videoController.value.isInitialized) {
+                        return Stack(
+                          children: [
+                            Positioned.fill(
+                              top: 15,
+                              child: VideoPlayer(videoController),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    onPressed: () {
+                                      final selectedIndex = controller.mediaData
+                                          .indexOf(controller
+                                              .selectedMediaData.value!);
+                                      // Hentikan pemutaran video jika sedang diputar
+                                      if (controller.isPlaying.value) {
+                                        final videoController = controller
+                                            .selectedVideoPlayerController
+                                            .value;
+                                        if (videoController != null &&
+                                            videoController.value.isPlaying) {
+                                          videoController.pause();
+                                          controller.isPlaying.value = false;
+                                        }
+                                      }
+                                      // Edit media
+                                      controller.editMedia(selectedIndex);
+                                    },
+                                    icon: const Icon(
+                                      Icons.edit_square,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: () {
+                                      final selectedIndex = controller.mediaData
+                                          .indexOf(controller
+                                              .selectedMediaData.value!);
+                                      controller.removeImage(selectedIndex);
+                                    },
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.center,
+                              child: TextButton(
+                                child: Obx(() {
+                                  return controller.isPlaying.value
+                                      ? Icon(Icons.pause,
+                                          size: 80.0, color: Colors.black)
+                                      : Icon(Icons.play_arrow,
+                                          size: 80.0, color: Colors.black);
+                                }),
+                                onPressed: () {
+                                  if (videoController.value.isPlaying) {
+                                    videoController.pause();
+                                    controller.isPlaying.value = false;
+                                  } else {
+                                    videoController.play();
+                                    controller.isPlaying.value = true;
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        );
+                      } else {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+                    } else if (selectedMedia.type == MediaType.image) {
+                      return Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                onPressed: () {
+                                  final selectedIndex = controller.mediaData
+                                      .indexOf(
+                                          controller.selectedMediaData.value!);
+                                  controller.editMedia(selectedIndex);
+                                },
+                                icon: const Icon(
+                                  Icons.edit_square,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  final selectedIndex = controller.mediaData
+                                      .indexOf(
+                                          controller.selectedMediaData.value!);
+                                  controller.removeImage(selectedIndex);
+                                },
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Expanded(
+                            child: Image.file(
+                              File(selectedMedia.path),
+                              fit: BoxFit.fitWidth,
+                            ),
+                          ),
+                        ],
+                      );
+                    } else {
+                      return Center(
+                        child: Text(
+                            'Unsupported media type: ${selectedMedia.type}'),
+                      );
+                    }
+                  } else {
+                    return const Center(child: Text('No media selected'));
+                  }
+                }),
+              ),
               Align(
                 alignment: Alignment.topLeft,
                 child: IconButton(
@@ -28,128 +168,6 @@ class UploadProcess extends GetView<ImageController> {
                     color: Colors.white,
                   ),
                 ),
-              ),
-              Positioned.fill(
-                child: Obx(() {
-                  final selectedMedia = controller.selectedMediaData.value;
-                  if (selectedMedia != null) {
-                    if (selectedMedia.type == MediaType.video) {
-                      return Stack(
-                        children: [
-                          Positioned.fill(
-                            child: VideoViewer(trimmer: controller.trimmer),
-                          ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    IconButton(
-                                      onPressed: () {
-                                        final selectedIndex = controller
-                                            .mediaData
-                                            .indexOf(controller
-                                                .selectedMediaData.value!);
-                                        controller.editMedia(selectedIndex);
-                                      },
-                                      icon: const Icon(
-                                        Icons.edit_square,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () {
-                                        final selectedIndex = controller
-                                            .mediaData
-                                            .indexOf(controller
-                                                .selectedMediaData.value!);
-                                        controller.removeImage(selectedIndex);
-                                      },
-                                      icon: const Icon(
-                                        Icons.delete,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.center,
-                            child: TextButton(
-                              child: Obx(() {
-                                return controller.isPlaying.value
-                                    ? Icon(Icons.pause,
-                                        size: 80.0, color: Colors.black)
-                                    : Icon(Icons.play_arrow,
-                                        size: 80.0, color: Colors.black);
-                              }),
-                              onPressed: () async {
-                                final playbackState = await controller.trimmer
-                                    .videoPlaybackControl(
-                                  startValue: controller.startValue.value,
-                                  endValue: controller.endValue.value,
-                                );
-                                controller.isPlaying.value = playbackState;
-                              },
-                            ),
-                          ),
-                        ],
-                      );
-                    } else if (selectedMedia.type == MediaType.image) {
-                      return Column(children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            IconButton(
-                              onPressed: () {
-                                final selectedIndex = controller.mediaData
-                                    .indexOf(
-                                        controller.selectedMediaData.value!);
-                                controller.editMedia(selectedIndex);
-                              },
-                              icon: const Icon(
-                                Icons.edit_square,
-                                color: Colors.white,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                final selectedIndex = controller.mediaData
-                                    .indexOf(
-                                        controller.selectedMediaData.value!);
-                                controller.removeImage(selectedIndex);
-                              },
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Expanded(
-                          child: Image.file(
-                            File(selectedMedia.path),
-                            fit: BoxFit
-                                .fitWidth, // Adjust fit based on your design
-                          ),
-                        )
-                      ]);
-                    } else {
-                      return Center(
-                        child: Text(
-                            'Unsupported media type: ${selectedMedia.type}'),
-                      );
-                    }
-                  } else {
-                    return const Center(child: Text('No media selected'));
-                  }
-                }),
               ),
               Positioned(
                 bottom: 20,
@@ -174,6 +192,15 @@ class UploadProcess extends GetView<ImageController> {
                                     controller.selectedMediaData.value = media;
                                     controller.description.text =
                                         media.description;
+                                    if (media.type == MediaType.video) {
+                                      controller.selectedVideoPlayerController
+                                              .value =
+                                          controller
+                                              .videoPlayerControllers[index];
+                                      controller.isPlaying.value = false;
+                                      // Load the video player controller if it's a video
+                                      controller.update(); // Ensure UI updates
+                                    }
                                   },
                                   child: Container(
                                     width: 50,
@@ -182,7 +209,8 @@ class UploadProcess extends GetView<ImageController> {
                                     decoration: BoxDecoration(
                                       border: Border.all(
                                         color: isSelected
-                                            ? Color.fromARGB(184, 186, 162, 5)
+                                            ? const Color.fromARGB(
+                                                184, 186, 162, 5)
                                             : Colors.transparent,
                                         width: isSelected ? 3.0 : 1.0,
                                       ),
@@ -195,8 +223,8 @@ class UploadProcess extends GetView<ImageController> {
                                                 File(media.thumbnailPath!),
                                                 fit: BoxFit.cover)
                                             : const Center(
-                                                child: Text(
-                                                    'Processing')), // Placeholder for thumbnail loading
+                                                child: Text('Processing'),
+                                              ), // Placeholder for thumbnail loading
                                   ),
                                 );
                               },
@@ -246,10 +274,10 @@ class UploadProcess extends GetView<ImageController> {
                               Get.snackbar(
                                   'Berhasil', 'oke mantap udah di save');
                             },
-                            child: Text('UPLOAD'),
+                            child: const Text('UPLOAD'),
                           ),
                         ],
-                      )
+                      ),
                     ],
                   ),
                 ),

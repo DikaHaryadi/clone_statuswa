@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:statuswa/image_controller.dart';
 import 'package:statuswa/theme_controller.dart';
-import 'package:video_trimmer/video_trimmer.dart';
+import 'package:video_player/video_player.dart';
 
 class FileUploadScreen extends StatelessWidget {
   @override
@@ -50,95 +50,125 @@ class FileUploadScreen extends StatelessWidget {
                     itemCount: controller.mediaData.length,
                     itemBuilder: (context, index) {
                       MediaData media = controller.mediaData[index];
-                      return Stack(children: [
-                        Column(
-                          children: [
-                            media.type == MediaType.image
-                                ? Image.file(
-                                    File(media.path),
-                                    fit: BoxFit.cover,
-                                  )
-                                : Stack(
-                                    children: [
-                                      Positioned.fill(
-                                        child: VideoViewer(
-                                            trimmer: controller.trimmer),
-                                      ),
-                                      Positioned(
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        child: Column(
-                                          children: [
-                                            Align(
-                                              alignment: Alignment.centerLeft,
-                                              child: IconButton(
-                                                onPressed: () {
-                                                  controller.clearImages();
-                                                  Get.back();
-                                                },
-                                                icon: const Icon(
-                                                  Icons.close,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Align(
-                                        alignment: Alignment.center,
-                                        child: TextButton(
-                                          child: Obx(() {
-                                            return controller.isPlaying.value
-                                                ? Icon(Icons.pause,
-                                                    size: 80.0,
-                                                    color: Colors.black)
-                                                : Icon(Icons.play_arrow,
-                                                    size: 80.0,
-                                                    color: Colors.black);
-                                          }),
-                                          onPressed: () async {
-                                            final playbackState =
-                                                await controller.trimmer
-                                                    .videoPlaybackControl(
-                                              startValue:
-                                                  controller.startValue.value,
-                                              endValue:
-                                                  controller.endValue.value,
-                                            );
-                                            controller.isPlaying.value =
-                                                playbackState;
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(child: Text(media.description)),
-                                  IconButton(
-                                    icon: Icon(Icons.edit, color: Colors.blue),
-                                    onPressed: () {},
-                                  ),
-                                ],
+
+                      return Stack(
+                        children: [
+                          Column(
+                            children: [
+                              // Widget untuk menampilkan gambar atau video
+                              media.type == MediaType.image
+                                  ? Image.file(
+                                      File(media.path),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Text(
+                                      'Kalo udah nampil text ini berarti videonya udah berhasil mas, cuma ini masih ke detect null. bingung gimana cara masukin ke UI nya'),
+                              // : Stack(
+                              //     children: [
+                              //       Positioned.fill(
+                              //         child: VideoPlayerController.file(
+                              //                     File(media.path))
+                              //                 .value
+                              //                 .isInitialized
+                              //             ? VideoPlayer(
+                              //                 VideoPlayerController.file(
+                              //                     File(media.path)),
+                              //               )
+                              //             : Container(),
+                              //       ),
+                              //       // Kontrol video (play/pause)
+                              //       Positioned(
+                              //         top: 0,
+                              //         left: 0,
+                              //         right: 0,
+                              //         child: Column(
+                              //           children: [
+                              //             Align(
+                              //               alignment: Alignment.centerLeft,
+                              //               child: IconButton(
+                              //                 onPressed: () {
+                              //                   controller.clearImages();
+                              //                   Get.back();
+                              //                 },
+                              //                 icon: const Icon(
+                              //                   Icons.close,
+                              //                   color: Colors.white,
+                              //                 ),
+                              //               ),
+                              //             ),
+                              //           ],
+                              //         ),
+                              //       ),
+                              //       Align(
+                              //         alignment: Alignment.center,
+                              //         child: TextButton(
+                              //           child: Obx(() {
+                              //             return controller.isPlaying.value
+                              //                 ? Icon(Icons.pause,
+                              //                     size: 80.0,
+                              //                     color: Colors.black)
+                              //                 : Icon(Icons.play_arrow,
+                              //                     size: 80.0,
+                              //                     color: Colors.black);
+                              //           }),
+                              //           onPressed: () async {
+                              //             final trimmer =
+                              //                 controller.trimmer;
+                              //             final startValue =
+                              //                 controller.startValue;
+                              //             final endValue =
+                              //                 controller.endValue;
+
+                              //             final playbackState =
+                              //                 await trimmer
+                              //                     .videoPlaybackControl(
+                              //               startValue: startValue.value,
+                              //               endValue: endValue.value,
+                              //             );
+                              //             controller.isPlaying.value =
+                              //                 playbackState;
+                              //           },
+                              //         ),
+                              //       ),
+                              //     ],
+                              //   ),
+                              // Deskripsi media
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(child: Text(media.description)),
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () {
+                                        // Panggil fungsi editDescription saat tombol edit ditekan
+                                        controller.editDescription(
+                                            context, index);
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        Positioned(
-                          top: 10,
-                          right: 10,
-                          child: IconButton(
+                            ],
+                          ),
+                          // Tombol hapus media
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: IconButton(
                               icon:
                                   Icon(Icons.delete_forever, color: Colors.red),
-                              onPressed: () {}),
-                        ),
-                      ]);
+                              onPressed: () {
+                                // Tambahkan logika untuk menghapus media
+                                controller.removeImage(index);
+                              },
+                            ),
+                          ),
+                        ],
+                      );
                     },
                     separatorBuilder: (BuildContext context, int index) =>
                         const Divider(),

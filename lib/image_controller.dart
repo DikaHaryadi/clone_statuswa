@@ -3,27 +3,28 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
+import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:statuswa/upload_process.dart';
 import 'package:video_player/video_player.dart';
-import 'dart:io';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:video_trimmer/video_trimmer.dart';
 import 'package:path/path.dart' as path;
 
 class ImageController extends GetxController {
-  static ImageController get instance => Get.find();
+  var mediaData = <MediaData>[].obs;
+  var selectedMediaData = Rxn<MediaData>();
+  var videoPlayerControllers = <VideoPlayerController>[].obs;
+  var selectedVideoPlayerController = Rxn<VideoPlayerController>();
+  var isPlaying = false.obs;
 
   final pageController = PageController();
   final description = TextEditingController();
-  RxList<MediaData> mediaData = <MediaData>[].obs;
-  final Rx<MediaData?> selectedMediaData = Rx<MediaData?>(null);
 
   final Trimmer trimmer = Trimmer();
   var startValue = 0.0.obs;
   var endValue = 0.0.obs;
-  var isPlaying = false.obs;
   var progressVisibility = false.obs;
 
   VideoPlayerController? videoPlayerController;
@@ -31,11 +32,15 @@ class ImageController extends GetxController {
   Future<void> selectMedia() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-          type: FileType.media, allowMultiple: true, allowCompression: false);
+        type: FileType.media,
+        allowMultiple: true,
+        allowCompression: false,
+      );
 
       if (result != null) {
         clearImages();
         List<MediaData> selectedMedia = [];
+        List<Future<void>> initializationFutures = [];
         for (var file in result.files) {
           if (file.path != null) {
             MediaType type =
@@ -51,42 +56,46 @@ class ImageController extends GetxController {
                   quality: 75,
                 );
 
-                await trimmer.loadVideo(videoFile: File(file.path!));
-
-                // Initialize VideoPlayerController
-                videoPlayerController =
-                    VideoPlayerController.file(File(file.path!))
-                      ..initialize().then((_) {
-                        videoPlayerController!.play();
-                        update(); // Ensure UI updates with video player state
-                      });
+                var controller = VideoPlayerController.file(File(file.path!));
+                initializationFutures.add(controller.initialize().then((_) {
+                  videoPlayerControllers.add(controller);
+                }));
               }
             } catch (e) {
               print('Error generating thumbnail or loading video: $e');
             }
 
             selectedMedia.add(
-                MediaData(file.path!, '', type, thumbnailPath: thumbnailPath));
+              MediaData(file.path!, '', type, thumbnailPath: thumbnailPath),
+            );
           }
         }
 
         if (selectedMedia.isNotEmpty) {
           mediaData.addAll(selectedMedia);
+          await Future.wait(initializationFutures);
           update();
           selectedMediaData.value = mediaData[0];
-          await Get.to(() => const UploadProcess());
-
-          for (var media in selectedMedia) {
-            if (media.description.isNotEmpty) {
-              mediaData.add(media);
-            }
+          if (selectedMediaData.value?.type == MediaType.video) {
+            selectedVideoPlayerController.value = videoPlayerControllers.first;
           }
-          update();
+          await Get.to(() => const UploadProcess());
         }
       }
     } catch (e) {
       print('Error picking media: $e');
     }
+  }
+
+  void clearImages() {
+    mediaData.clear();
+    videoPlayerControllers.forEach((controller) {
+      controller.dispose();
+    });
+    videoPlayerControllers.clear();
+    selectedMediaData.value = null;
+    selectedVideoPlayerController.value = null;
+    update();
   }
 
   Future<void> editDescription(BuildContext context, int index) async {
@@ -95,11 +104,9 @@ class ImageController extends GetxController {
 
     await Get.to(() => const UploadProcess());
 
-    // After returning from StatusWaScreen, handle description updates
     final updatedMedia = selectedMediaData.value;
     if (updatedMedia != null && updatedMedia.description.isEmpty) {
-      updatedMedia.description =
-          'Enter Description'; // Default description if left empty
+      updatedMedia.description = 'Enter Description';
     }
 
     mediaData[index] = updatedMedia ?? mediaData[index];
@@ -111,7 +118,7 @@ class ImageController extends GetxController {
     if (mediaData.isEmpty) {
       selectedMediaData.value = null;
       isPlaying.value = false;
-      _disposeVideoPlayer(); // Dispose video player if no media left
+      _disposeVideoPlayer(); // nah ini ditambahin
     } else {
       selectedMediaData.value = mediaData.first;
       isPlaying.value = false;
@@ -119,14 +126,54 @@ class ImageController extends GetxController {
     update(); // Update the UI after removing an image
   }
 
-  void clearImages() {
-    mediaData.clear();
-    selectedMediaData.value = null;
-    isPlaying.value = false;
-    _disposeVideoPlayer(); // dispose video
-    update();
-    print('Images cleared and state updated');
-  }
+  // void editMedia(int index) async {
+  //   final media = mediaData[index];
+  //   if (media.type == MediaType.image) {
+  //     try {
+  //       final editedImageBytes = await Get.to(
+  //           () => ImageEditor(image: File(media.path).readAsBytesSync()));
+  //       if (editedImageBytes != null && editedImageBytes is Uint8List) {
+  //         final editedImagePath =
+  //             await saveEditedImage(editedImageBytes, media.path);
+  //         if (File(editedImagePath).existsSync()) {
+  //           print('Edited image file exists.');
+  //           mediaData[index] =
+  //               MediaData(editedImagePath, media.description, MediaType.image);
+  //           selectedMediaData.value = mediaData[index];
+  //           update(); // Update the UI with the edited image
+  //         } else {
+  //           print('Edited image file does not exist.');
+  //         }
+  //       } else {
+  //         print('Edited image is null or not a Uint8List');
+  //       }
+  //     } catch (e) {
+  //       print('Error editing image: $e');
+  //     }
+  //   } else if (media.type == MediaType.video) {
+  //     debugPrint('before');
+  //     final editedVideoFile =
+  //         await Get.toNamed('/video-trim', arguments: File(media.path));
+  //     debugPrint('after');
+  //     if (editedVideoFile != null && editedVideoFile is File) {
+  //       debugPrint('sudah Edit');
+  //       mediaData[index] =
+  //           MediaData(editedVideoFile.path, media.description, MediaType.video);
+  //       selectedMediaData.value = mediaData[index];
+  //       update(); // Update the UI with the edited video
+
+  //       // Memuat ulang VideoPlayerController untuk video yang diperbarui
+  //       if (selectedMediaData.value?.type == MediaType.video) {
+  //         final videoPath = selectedMediaData.value!.path;
+  //         final videoController = VideoPlayerController.file(File(videoPath));
+  //         await videoController.initialize();
+  //         videoPlayerControllers[index] = videoController;
+  //         selectedVideoPlayerController.value = videoController;
+  //         update(); // Pastikan UI diperbarui setelah memuat ulang video
+  //       }
+  //     }
+  //   }
+  // }
 
   void editMedia(int index) async {
     final media = mediaData[index];
@@ -153,31 +200,65 @@ class ImageController extends GetxController {
         print('Error editing image: $e');
       }
     } else if (media.type == MediaType.video) {
-      final editedVideo =
+      debugPrint('before');
+      final editedVideoFile =
           await Get.toNamed('/video-trim', arguments: File(media.path));
-      if (editedVideo != null) {
+      debugPrint('after');
+      if (editedVideoFile != null && editedVideoFile is File) {
+        debugPrint('sudah Edit');
         mediaData[index] =
-            MediaData(editedVideo.path, media.description, MediaType.video);
+            MediaData(editedVideoFile.path, media.description, MediaType.video);
+
+        // Update thumbnailPath after editing video
+        mediaData[index].thumbnailPath =
+            await generateVideoThumbnail(editedVideoFile.path);
+
         selectedMediaData.value = mediaData[index];
-        update();
+        update(); // Update the UI with the edited video
+
+        // Memuat ulang VideoPlayerController untuk video yang diperbarui
+        if (selectedMediaData.value?.type == MediaType.video) {
+          final videoPath = selectedMediaData.value!.path;
+          final videoController = VideoPlayerController.file(File(videoPath));
+          await videoController.initialize();
+          videoPlayerControllers[index] = videoController;
+          selectedVideoPlayerController.value = videoController;
+          update(); // Pastikan UI diperbarui setelah memuat ulang video
+        }
       }
     }
-    update(); // Update the UI after clearing images
   }
 
-  saveVideo() async {
-    progressVisibility.value = true;
-    String? result;
-    print('ini result edit video: $result');
-    await trimmer.saveTrimmedVideo(
-        startValue: startValue.value,
-        endValue: endValue.value,
-        onSave: (value) {
-          progressVisibility.value = false;
-          result = value;
-          Get.snackbar("Video", result!);
-        });
+// ini thumbnail baru ketika video udah di edit ya mas
+  Future<String?> generateVideoThumbnail(String videoPath) async {
+    try {
+      final thumbnailPath = await VideoThumbnail.thumbnailFile(
+        video: videoPath,
+        thumbnailPath: (await getTemporaryDirectory()).path,
+        imageFormat: ImageFormat.PNG,
+        maxHeight: 50,
+        quality: 75,
+      );
+      return thumbnailPath;
+    } catch (e) {
+      print('Error generating video thumbnail: $e');
+      return null;
+    }
   }
+
+  // saveVideo() async {
+  //   progressVisibility.value = true;
+  //   String? result;
+  //   print('ini result edit video: $result');
+  //   await trimmer.saveTrimmedVideo(
+  //       startValue: startValue.value,
+  //       endValue: endValue.value,
+  //       onSave: (value) {
+  //         progressVisibility.value = false;
+  //         result = value;
+  //         Get.snackbar("Video", result!);
+  //       });
+  // }
 
   void uploadImages() {
     // Implement the functionality to handle uploading the images
@@ -195,6 +276,7 @@ class ImageController extends GetxController {
   }
 
   void _disposeVideoPlayer() {
+    //ini di tambahin
     if (videoPlayerController != null) {
       videoPlayerController!.pause();
       videoPlayerController!.dispose();
@@ -205,6 +287,7 @@ class ImageController extends GetxController {
 
   @override
   void onClose() {
+    //ini ditambahin
     _disposeVideoPlayer();
     mediaData.clear();
     description.dispose();
@@ -216,7 +299,7 @@ class MediaData {
   final String path;
   String description;
   final MediaType type;
-  final String? thumbnailPath;
+  String? thumbnailPath;
 
   MediaData(this.path, this.description, this.type, {this.thumbnailPath});
 }

@@ -8,11 +8,13 @@ class VideoTrimView extends GetView<VideoTrimController> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text('Video Trimmer'),
+          title: Text('Edit Video'),
           actions: [
             IconButton(
               icon: Icon(Icons.save),
-              onPressed: controller.saveVideo,
+              onPressed: () {
+                controller.saveVideo();
+              },
             )
           ],
         ),
