@@ -30,10 +30,12 @@ environment:
 dependencies:
   cupertino_icons: ^1.0.6
   file_picker: ^8.0.3
+  floating_menu_panel: ^0.0.2
   flutter:
     sdk: flutter
   get: ^4.6.6
   get_storage: ^2.1.1
+  iconly: ^1.0.1
   image_editor_plus: ^1.0.5
   image_picker: ^1.1.1
   path: ^1.9.0

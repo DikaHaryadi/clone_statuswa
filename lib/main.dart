@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:statuswa/app_routes.dart';
+import 'package:statuswa/floating_action_btn.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,7 +13,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      getPages: AppPages.routes(),
+      // getPages: AppPages.routes(),
+      home: FloatingActionBtn(),
     );
   }
 }
