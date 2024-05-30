@@ -101,6 +101,7 @@ class UploadProcess extends GetView<ImageController> {
                           ],
                         );
                       } else {
+                        // Inisialisasi belum selesai, tampilkan progress indicator
                         return const Center(
                           child: CircularProgressIndicator(),
                         );
@@ -188,19 +189,28 @@ class UploadProcess extends GetView<ImageController> {
                                 final isSelected =
                                     controller.selectedMediaData.value == media;
                                 return GestureDetector(
-                                  onTap: () {
+                                  onTap: () async {
                                     controller.selectedMediaData.value = media;
                                     controller.description.text =
                                         media.description;
                                     if (media.type == MediaType.video) {
-                                      controller.selectedVideoPlayerController
-                                              .value =
+                                      final videoController = controller
+                                          .videoPlayerControllers[index];
+                                      if (videoController != null) {
+                                        if (videoController !=
+                                            controller
+                                                .selectedVideoPlayerController
+                                                .value) {
+                                          // Hanya inisialisasi jika video yang dipilih berbeda dengan yang sedang diputar
+                                          await videoController.initialize();
                                           controller
-                                              .videoPlayerControllers[index];
-                                      controller.isPlaying.value = false;
-                                      // Load the video player controller if it's a video
-                                      controller.update(); // Ensure UI updates
+                                              .selectedVideoPlayerController
+                                              .value = videoController;
+                                          controller.isPlaying.value = false;
+                                        }
+                                      }
                                     }
+                                    controller.update(); // Ensure UI updates
                                   },
                                   child: Container(
                                     width: 50,
@@ -271,6 +281,7 @@ class UploadProcess extends GetView<ImageController> {
                           ElevatedButton(
                             onPressed: () {
                               Get.offNamed('/');
+                              controller.clearImages();
                               Get.snackbar(
                                   'Berhasil', 'oke mantap udah di save');
                             },
